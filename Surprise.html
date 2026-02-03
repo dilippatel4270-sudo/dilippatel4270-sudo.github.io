@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Princess Interactive – Pro Edition</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Great+Vibes&display=swap" rel="stylesheet" />
+
+<style>
+:root{--bg1:#ff9a9e;--bg2:#fad0c4;--bg3:#fbc2eb;--bg4:#a18cd1;--gold:#d4af37;--glass:rgba(255,255,255,.25);--text:#222;--card:rgba(255,255,255,.6);--radius:22px;}
+.dark{--glass:rgba(0,0,0,.35);--text:#fff;--card:rgba(0,0,0,.45);}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Poppins',sans-serif;background:linear-gradient(135deg,var(--bg1),var(--bg2),var(--bg3),var(--bg4));background-size:300% 300%;animation:move 14s ease infinite;min-height:100vh;display:flex;align-items:center;justify-content:center;color:var(--text);}
+@keyframes move{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+#hearts{position:fixed;inset:0;pointer-events:none;z-index:0;}
+.phone{position:relative;z-index:1;width:420px;max-width:95%;backdrop-filter:blur(18px);background:var(--glass);border-radius:var(--radius);padding:16px;box-shadow:0 20px 50px rgba(0,0,0,.2);}
+.header{text-align:center;font-family:'Great Vibes',cursive;font-size:30px;margin-bottom:6px;}
+.footer{text-align:center;font-size:12px;opacity:.8;margin-top:6px;}
+.card{background:var(--card);border-radius:24px;padding:20px 16px;margin:12px 0;box-shadow:0 12px 30px rgba(0,0,0,.14);animation:cardIn .6s ease;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:260px;text-align:center;}
+@keyframes cardIn{from{opacity:0;transform:translateY(10px)}to{opacity:1}}
+.btn{width:92%;max-width:340px;margin:8px auto;padding:14px 12px;border:none;border-radius:18px;cursor:pointer;font-size:16px;transition:.2s;outline:none;}
+.btn:hover{transform:scale(1.03)}
+.btn:focus{box-shadow:0 0 0 3px var(--gold);}
+.btn.primary{background:linear-gradient(90deg,#ff416c,#ff4b2b);color:#fff;}
+.progress{height:8px;background:rgba(0,0,0,.1);border-radius:10px;margin:10px;}
+#bar{height:8px;width:0%;background:linear-gradient(90deg,#ff416c,#ff4b2b);transition:.5s;}
+.topbar{display:flex;justify-content:space-between;align-items:center}
+.toggle{cursor:pointer}
+</style>
+</head>
+<body>
+<canvas id="hearts"></canvas>
+<div class="phone" role="main">
+ <div class="topbar">
+   <div class="header">Princess Challenge</div>
+   <div>
+     <span class="toggle" onclick="toggleTheme()">🌓</span>
+     <span class="toggle" onclick="toggleSound()">🔊</span>
+   </div>
+ </div>
+ <div id="app" aria-live="polite" style="display:flex;align-items:center;justify-content:center;min-height:60vh;"></div>
+ <div class="progress"><div id="bar"></div></div>
+ <div class="footer">Made for Princess with maximum drama</div>
+</div>
+
+<script>
+// Floating hearts
+const cvs=document.getElementById('hearts');
+const cx=cvs.getContext('2d');
+cvs.width=innerWidth;cvs.height=innerHeight;
+let H=[...Array(40)].map(()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight}));
+function drawH(){cx.clearRect(0,0,cvs.width,cvs.height);cx.fillStyle='rgba(255,255,255,.6)';H.forEach(h=>{cx.fillText('❤',h.x,h.y);h.y-=.4;if(h.y<0)h.y=innerHeight});requestAnimationFrame(drawH);}drawH();
+
+// Sounds
+let sound=true;
+const sClick=new Audio('https://cdn.pixabay.com/download/audio/2022/03/24/audio_9b1f1c2f6a.mp3?filename=click-124467.mp3');
+function play(a){if(sound)a.play();}
+function toggleSound(){sound=!sound;}
+
+// State
+let step=0,score=0;
+function save(){localStorage.setItem('step',step);localStorage.setItem('score',score);}
+function load(){
+  // Always start from landing page when page is opened via shared link
+  step = 0;
+  score = +localStorage.getItem('score') || 0;
+}
+
+function type(el,txt,i=0){if(!el)return;if(i<txt.length){el.innerHTML+=txt[i];setTimeout(()=>type(el,txt,i+1),20);}}
+
+function question(title,text,options,correct){if(!Array.isArray(options))options=[];const qid='qtxt_'+Math.random().toString(36).slice(2,7);setTimeout(()=>{const el=document.getElementById(qid);if(el){el.innerHTML='';type(el,text);}},60);return `<div class='card' role='group'>
+ <div style='font-size:34px;margin-bottom:6px'>💌</div>
+ <h3 style='font-size:18px;margin:4px 0;color:var(--gold)'>${title}</h3>
+ <p id='${qid}' style='font-size:16px;line-height:1.4;min-height:60px'></p>`+
+ options.map((x,i)=>`<button class='btn ${i===correct?'primary':''}' onclick='ans(${i===correct})'>${x}</button>`).join('')+
+ '</div>';}
+
+// Pages
+const pages=[
+()=>`<div class='card'>
+<h1 style="font-size:22px;margin-bottom:6px;font-weight:600">Interactive Friendship Quiz</h1>
+<p id='heroSub' style="opacity:.95;margin-bottom:10px"></p>
+<div style="margin:6px 0;font-size:12px;opacity:.85">How this works ⓘ</div>
+<button class='btn primary' onclick='next()'>Start Experience</button>
+</div>`,
+
+()=>`<div class='card'>
+<div style='font-size:40px'>🤝</div>
+<h2>Welcome Bestie</h2>
+<p id='wTxt'></p>
+<div style='display:flex;gap:6px;justify-content:center;font-size:12px'>
+ <span class='toggle' onclick='toggleSound()'>Music ⓘ</span>
+ <span class='toggle' onclick='goResult()'>Skip quiz → see result</span>
+</div>
+<button class='btn primary' onclick='next()'>Begin</button>
+</div>`,
+
+()=>question('Q1 – Long Distance Emergency','Imagine my day is going terrible and I message you at your midnight saying “Princess I need you”. What would the real Princess do?',['Wake up and reply','Reply with sleepy emoji','Scold me for timing','Pretend no internet'],0),
+()=>question('Q2 – Culture Mix','We live in two different worlds – you with Filipino vibes and me with my desi madness. Which combination describes us best?',['Chaotic international duo','Drama exporters','Emoji language experts','Certified weirdos'],0),
+()=>question('Q3 – Late Reply Court','When you disappear for hours and return with “sorry I was busy”, what punishment fits?',['Send 20 selfies','Voice note apology','Pizza treat promise','Lifetime meme spam'],0),
+()=>question('Q4 – Pizza Constitution','If we ever meet in real life, who is officially paying for the first huge pizza?',['Princess with pride','You as visitor','Split like adults','Run without paying'],0),
+()=>question('Q5 – Friendship Meter','Rate our long distance friendship which survived bad internet and 3 AM overthinking.',['Unbreakable','Premium subscription','Emotional rollercoaster','Chaotic but cute'],0),
+()=>question('Q6 – Talent Show','Among your Princess abilities – being cute, stubborn, kind, dramatic – which attacks me most?',['Maximum cuteness','Drama pro max','Stubborn queen','Kind heart'],0),
+()=>question('Q7 – Meeting Dream','The day we finally meet, what is the first thing we should do?',['Kiss','Do watering to princess','Airport crying','100 selfies'],0),
+
+()=>`<div class='card'>
+<h2 style="font-size:20px;margin-bottom:6px">Your Result</h2>
+<svg width='120' height='120'>
+ <circle cx='60' cy='60' r='50' stroke='#eee' stroke-width='8' fill='none'/>
+ <circle cx='60' cy='60' r='50' stroke='#ff416c' stroke-width='8' fill='none'
+  stroke-dasharray='314' stroke-dashoffset='${314 - (Math.min(100, Math.round((score/70)*100))/100)*314}' />
+ <text x='60' y='68' text-anchor='middle' font-size='22'>${Math.min(100, Math.round((score/70)*100))}%</text>
+</svg>
+<p>${(Math.min(100, Math.round((score/70)*100)))<40?'Let’s know each other more.':(Math.min(100, Math.round((score/70)*100)))<70?'A good connection growing.':'An elite bond built with trust.'}</p>
+<button class='btn primary' onclick='share()'>Share Result</button>
+<button class='btn' onclick='downloadPDF()'>Download Q&A PDF</button>
+<button class='btn' onclick='restart()'>Restart</button>
+</div>`
+];
+
+function goResult(){ step = pages.length-1; render(); }
+
+function ans(ok){play(sClick);if(ok)score+=10;next();}
+function next(){ step++; if(step >= pages.length) step = pages.length-1; save(); render(); }
+
+function share(){ const percent=Math.min(100,Math.round((score/70)*100)); const txt=`I scored ${percent}% in the Friendship Quiz!`; open('https://wa.me/?text='+encodeURIComponent(txt)); }
+
+function restart(){
+  // Always return to first landing page
+  step = 0;
+  score = 0;
+  localStorage.setItem('step','0');
+  localStorage.setItem('score','0');
+  document.getElementById('bar').style.width='0%';
+  render();
+ }
+
+function toggleTheme(){document.body.classList.toggle('dark');}
+
+function downloadPDF(){
+ const percent=Math.min(100,Math.round((score/70)*100));
+ const now=new Date().toLocaleString();
+ const content=`❤❤ PRINCESS CERTIFICATE ❤❤\n\nScore: ${percent}%\nDate: ${now}\n\n♥──────────────────────────♥\n`+
+ `Q1 – Long Distance Emergency\n- Wake up and reply\n- Reply with sleepy emoji\n- Scold me for timing\n- Pretend no internet\n♥──────────────────────────♥\n`+
+ `Q2 – Culture Mix\n- Chaotic international duo\n- Drama exporters\n- Emoji language experts\n- Certified weirdos\n♥──────────────────────────♥\n`+
+ `Q3 – Late Reply Court\n- Send 20 selfies\n- Voice note apology\n- Pizza treat promise\n- Lifetime meme spam\n♥──────────────────────────♥\n`+
+ `Q4 – Pizza Constitution\n- Princess with pride\n- You as visitor\n- Split like adults\n- Run without paying\n♥──────────────────────────♥\n`+
+ `Q5 – Friendship Meter\n- Unbreakable\n- Premium subscription\n- Emotional rollercoaster\n- Chaotic but cute\n♥──────────────────────────♥\n`+
+ `Q6 – Talent Show\n- Maximum cuteness\n- Drama pro max\n- Stubborn queen\n- Kind heart\n♥──────────────────────────♥\n`+
+ `Q7 – Meeting Dream\n- Kiss\n- Do watering to princess\n- Airport crying\n- 100 selfies\n♥──────────────────────────♥\n`+
+ `Made for Princess with maximum drama`;
+ const blob=new Blob([content],{type:'application/pdf'});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement('a');a.href=url;a.download='Princess_Challenge_QA.pdf';a.click();URL.revokeObjectURL(url);
+}
+
+function afterRender(){ if(step===0){type(document.getElementById('heroSub'),'Made for Princess with maximum drama');} if(step===1){type(document.getElementById('wTxt'),'This short quiz is created only for fun and connection.');}}
+
+function render(){ const app=document.getElementById('app'); if(step<0||step>=pages.length) step=0; app.innerHTML=pages[step](); document.getElementById('bar').style.width=(step/(pages.length-1))*100+'%'; afterRender(); }
+
+load();render();
+</script>
+</body>
+</html>
